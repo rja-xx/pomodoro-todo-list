@@ -2,6 +2,7 @@
   <div class="holder">
     <div class="state">
         <h1>{{ state }}</h1>
+        <h2 v-if="state!=='Plan'">{{ String(remainingMinutes).padStart(2,0) }} : {{ String(remainingSeconds).padStart(2,0) }}</h2>
         <h2 v-if="state==='Work'">{{ tasks[0] }}</h2>
         <img v-show="state === 'Work'" :src="work" width="20%" />
         <img v-show="state === 'Rest'" :src="rest" width="20%" />
@@ -43,10 +44,32 @@
         Pomodoros completed {{pomodorosDone}}
       </h2>
       <ul>
-        <li v-for="(t,index) in completedTasks" v-if="index < 10">
+        <li v-for="(t,index) in completedTasks" v-if="index < tasksShown">
           <button class="restart" v-on:click="reopenTask">{{t}}</button>
         </li>
       </ul>
+    </div>
+    <div class="slidecontainer">
+      <form>
+        <fieldset>
+          <legend v-on:click="toggleHelp">Settings and Help</legend>
+          <div v-if="displayHelp">
+            <label for="work">Minutes of work {{workMinutes}}</label>
+          <input id="work" type="range" min="1" max="100" v-model="workMinutes" class="slider">
+          <label for="rest">Minutes of rest {{restMinutes}}</label>
+          <input id="work" type="range" min="1" max="100" v-model="workMinutes" class="slider">
+          <label for="rest">Number of displayed completed tasks {{tasksShown}}</label>
+          <input id="rest" type="range" min="1" max="50" v-model="tasksShown" class="slider">
+          <ul class="helplist" align="left">
+            <li><b>Up</b> - Move task up (prioritize)</li>
+            <li><b>Down</b> - Move task down (deprioritize)</li>
+            <li><b>Enter/Space</b> - Mark as completed or reopen</li>
+            <li><b>Tab</b> - Move focus to next item</li>
+            <li><b>Shift+Tab</b> - Move focus to previous item</li>
+          </ul>
+          </div>
+        </fieldset>
+      </form>
     </div>
   </div>
 
@@ -72,29 +95,48 @@ export default {
         rest: rest,
         plan: plan,
         restMinutes: 5,
-        workMinutes: 20,
+        workMinutes: 25,
+        remainingMinutes: 0,
+        remainingSeconds: 0,
         tasks: [],
         completedTasks: [],
         pomodorosDone: 0,
+        tasksShown: 5,
+        targetDate: new Date(),
         candidateTask: '',
-        audio: new Audio(sound)
+        audio: new Audio(sound),
+        displayHelp: false
       }
   },
   methods: {
+      toggleHelp: function(){
+          this.displayHelp = !this.displayHelp;
+      },
       startPomodoro: function(){
         this.state = 'Work';
+        this.targetDate = new Date();
+        this.targetDate.setMinutes(this.targetDate.getMinutes()+this.workMinutes);
+        this.saveData();
+        console.log(this.targetDate);
         var self = this;
-        setTimeout(function(){
-          self.audio.play();
-          self.pomodorosDone += 1;
-          self.saveData();
-          self.state = 'Rest';
-          var restMinutes = self.pomodorosDone % 4 === 0 ? self.restMinutes*3 : self.restMinutes;
-          setTimeout(function(){
-            self.state = 'Plan';
+        var timer = setInterval(function(){
+          if(new Date() > self.targetDate){
             self.audio.play();
-          }, restMinutes*60*1000);
-        }, this.workMinutes*60*1000);
+            if(self.state === 'Work'){
+              self.pomodorosDone += 1;
+              self.state = 'Rest';
+              self.targetDate.setMinutes(self.targetDate.getMinutes()+self.restMinutes);
+              self.saveData();
+            } else {
+              clearInterval(timer)
+              self.state = 'Plan';
+            }
+          }else{
+            var distance = self.targetDate - new Date().getTime();
+            self.remainingMinutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            self.remainingSeconds = Math.floor((distance % (1000 * 60)) / 1000);
+          }
+        }, 1000);
       },
       addTask: function(){
         if(this.candidateTask !== ''){
@@ -115,7 +157,7 @@ export default {
         this.saveData();
       },
       saveData: function() {
-        const parsed = JSON.stringify({tasks: this.tasks, pomodorosDone: this.pomodorosDone, completedTasks: this.completedTasks});
+        const parsed = JSON.stringify({tasks: this.tasks, pomodorosDone: this.pomodorosDone, completedTasks: this.completedTasks, targetDate: this.targetDate});
         localStorage.setItem('pomodoroSaveData', parsed);
       },
       reopenTask: function(event) {
@@ -170,8 +212,13 @@ export default {
   margin-right: 20%;
   align-content: center;
 }
+ul{
+  padding-inline-start: 0
+}
 li{
-  list-style-type: none
+  list-style-type: none;
+}
+.helplist {
 }
 h1{
   font-size: 48px;
@@ -197,6 +244,9 @@ button:focus {
   background-color: lighten(magenta, 30);
   width: 100%
 }
+fieldset {
+  border: 0
+}
 input {
   width: 100%;
   height: 40px;
@@ -204,5 +254,7 @@ input {
   font-size: 18px;
   border-width: thick;
   margin-bottom: 20px;
+}
+.slidecontainer {
 }
 </style>
