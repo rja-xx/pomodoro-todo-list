@@ -25,7 +25,7 @@
 
     <div class="plan" v-if="state==='Plan'">
       <h2>
-        ToDo list
+        Todo-list
       </h2>
         <ul>
           <li v-for="task in tasks">
@@ -49,7 +49,7 @@
         </li>
       </ul>
     </div>
-    <div class="slidecontainer">
+    <div class="slidecontainer" v-if="state==='Plan'">
       <form>
         <fieldset>
           <legend v-on:click="toggleHelp">Settings and Help</legend>
@@ -57,9 +57,9 @@
             <label for="work">Minutes of work {{workMinutes}}</label>
           <input id="work" type="range" min="1" max="100" v-model="workMinutes" class="slider">
           <label for="rest">Minutes of rest {{restMinutes}}</label>
-          <input id="work" type="range" min="1" max="100" v-model="workMinutes" class="slider">
-          <label for="rest">Number of displayed completed tasks {{tasksShown}}</label>
-          <input id="rest" type="range" min="1" max="50" v-model="tasksShown" class="slider">
+          <input id="rest" type="range" min="1" max="100" v-model="restMinutes" class="slider">
+          <label for="shown">Number of displayed completed tasks {{tasksShown}}</label>
+          <input id="shown" type="range" min="1" max="50" v-model="tasksShown" class="slider">
           <ul class="helplist" align="left">
             <li><b>Up</b> - Move task up (prioritize)</li>
             <li><b>Down</b> - Move task down (deprioritize)</li>
