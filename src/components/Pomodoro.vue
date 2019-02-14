@@ -25,48 +25,54 @@
 
     <div class="plan" v-if="state==='Plan'">
       <h2>
-        Todo-list
+        Todo-list ({{tasks.length}})
       </h2>
         <ul>
-          <li v-for="(task,index) in tasks" v-if="index < tasksShown">
+          <li v-for="(task,index) in tasks" v-if="(index < todoTasksShown) || showAllTodo">
               <button
               v-on:keyup.space="startPomodoro"
               v-on:keyup.backspace="clearTask(task)"
+              v-on:keyup="keyMonitor"
               v-on:click="completeTask(task)"
               v-on:keyup.up="upTask"
               v-on:keyup.down="downTask"
               >{{task}}</button>
           </li>
         </ul>
+        <a v-on:click="toggleShowAllTodo">{{showAllTodo ? 'Hide' : 'Show all'}}</a>
     </div>
     <div class="result"  v-if="state==='Plan'">
       <h2>
-        Pomodoros completed {{pomodorosDone}}
+        Pomodoros completed: {{pomodorosDone}} Tasks completed: {{completedTasks.length}}
       </h2>
       <ul>
-        <li v-for="(t,index) in completedTasks" v-if="index < tasksShown">
-          <button class="restart" v-on:click="reopenTask">{{t}}</button>
+        <li v-for="(t,index) in completedTasks" v-if="(index < completedTasksShown) || showAllCompleted">
+          <button class="restart" v-on:click="reopenTask" v-on:keyup="keyup">{{t}}</button>
         </li>
       </ul>
+      <a v-on:click="toggleShowAllCompleted">{{showAllCompleted ? 'Hide' : 'Show all'}}</a>
     </div>
     <div class="slidecontainer" v-if="state==='Plan'">
       <form>
         <fieldset>
-          <legend v-on:click="toggleHelp">Settings and Help</legend>
+          <legend v-on:click="toggleHelp">{{displayHelp ? 'Hide' : 'Settings and Help'}}</legend>
           <div v-if="displayHelp">
             <label for="work">Minutes of work {{workMinutes}}</label>
-          <input id="work" type="range" min="1" max="100" v-model="workMinutes" class="slider">
-          <label for="rest">Minutes of rest {{restMinutes}}</label>
-          <input id="rest" type="range" min="1" max="100" v-model="restMinutes" class="slider">
-          <label for="shown">Number of displayed completed tasks {{tasksShown}}</label>
-          <input id="shown" type="range" min="1" max="50" v-model="tasksShown" class="slider">
-          <ul class="helplist" align="left">
-            <li><b>Up</b> - Move task up (prioritize)</li>
-            <li><b>Down</b> - Move task down (deprioritize)</li>
-            <li><b>Enter/Space</b> - Mark as completed or reopen</li>
-            <li><b>Tab</b> - Move focus to next item</li>
-            <li><b>Shift+Tab</b> - Move focus to previous item</li>
-          </ul>
+            <input id="work" type="range" min="1" max="100" v-model="workMinutes" class="slider">
+            <label for="rest">Minutes of rest {{restMinutes}}</label>
+            <input id="rest" type="range" min="1" max="100" v-model="restMinutes" class="slider">
+            <label for="shown">Number of displayed todo tasks {{todoTasksShown}}</label>
+            <input id="shown" type="range" min="1" max="50" v-model="todoTasksShown" class="slider">
+            <label for="shown">Number of displayed completed tasks {{completedTasksShown}}</label>
+            <input id="shown" type="range" min="1" max="50" v-model="completedTasksShown" class="slider">
+            <ul class="helplist" align="left">
+              <li><b>Up</b> - Move task up (prioritize)</li>
+              <li><b>Down</b> - Move task down (deprioritize)</li>
+              <li><b>Enter/Space</b> - Mark as completed or reopen</li>
+              <li><b>Tab</b> - Move focus to next item</li>
+              <li><b>Shift+Tab</b> - Move focus to previous item</li>
+              <li><b>Alt</b> - Toggle expand list </li>
+            </ul>
           </div>
         </fieldset>
       </form>
@@ -101,14 +107,33 @@ export default {
         tasks: [],
         completedTasks: [],
         pomodorosDone: 0,
-        tasksShown: 5,
+        completedTasksShown: 5,
+        todoTasksShown: 5,
         targetDate: new Date(),
         candidateTask: '',
         audio: new Audio(sound),
-        displayHelp: false
+        displayHelp: false,
+        showAllTodo: false,
+        showAllCompleted: false
       }
   },
   methods: {
+    keyMonitor: function(event){
+      if(event.key == 'Alt'){
+        this.toggleShowAllTodo();
+      }
+    },
+      keyup: function(event) {
+       if(event.key == 'Alt'){
+         this.toggleShowAllCompleted();
+       }
+      },
+      toggleShowAllTodo: function(){
+        this.showAllTodo = !this.showAllTodo;
+      },
+      toggleShowAllCompleted: function(){
+        this.showAllCompleted = !this.showAllCompleted;
+      },
       toggleHelp: function(){
           this.displayHelp = !this.displayHelp;
       },
@@ -117,7 +142,6 @@ export default {
         this.targetDate = new Date();
         this.targetDate.setMinutes(this.targetDate.getMinutes()+this.workMinutes);
         this.saveData();
-        console.log(this.targetDate);
         var self = this;
         var timer = setInterval(function(){
           if(new Date() > self.targetDate){
@@ -140,6 +164,10 @@ export default {
       },
       addTask: function(){
         if(this.candidateTask !== ''){
+          if(this.tasks.indexOf(this.candidateTask) !== -1){
+            alert("Task already exist")
+            return;
+          }
           this.tasks.reverse();
           this.tasks.push(this.candidateTask);
           this.tasks.reverse();
