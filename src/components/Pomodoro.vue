@@ -28,7 +28,7 @@
         Todo-list
       </h2>
         <ul>
-          <li v-for="task in tasks">
+          <li v-for="(task,index) in tasks" v-if="index < tasksShown">
               <button
               v-on:keyup.space="startPomodoro"
               v-on:keyup.backspace="clearTask(task)"
@@ -95,7 +95,7 @@ export default {
         rest: rest,
         plan: plan,
         restMinutes: 5,
-        workMinutes: 25,
+        workMinutes: 20,
         remainingMinutes: 0,
         remainingSeconds: 0,
         tasks: [],
@@ -140,7 +140,9 @@ export default {
       },
       addTask: function(){
         if(this.candidateTask !== ''){
+          this.tasks.reverse();
           this.tasks.push(this.candidateTask);
+          this.tasks.reverse();
           this.candidateTask = '';
           this.saveData();
         }
