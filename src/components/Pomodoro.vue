@@ -4,7 +4,8 @@
         <h1>{{ state }}</h1>
         <h2 v-if="state!=='Plan'">{{ String(remainingMinutes).padStart(2,0) }} : {{ String(remainingSeconds).padStart(2,0) }}</h2>
         <h2 v-if="state==='Work'">{{ tasks[0] }}</h2>
-        <img v-show="state === 'Work'" :src="work" width="20%" />
+        <img v-show="state === 'Work' && pomodorosDone % 2 === 1" :src="work" width="20%" />
+        <img v-show="state === 'Work' && pomodorosDone % 2 === 0" :src="work2" width="20%" />
         <img v-show="state === 'Rest'" :src="rest" width="20%" />
         <img v-show="state === 'Plan'" :src="plan" width="20%" />
     </div>
@@ -83,6 +84,7 @@
 
 <script>
 import work from "../assets/work.png"
+import work2 from "../assets/work2.png"
 import rest from "../assets/rest.png"
 import plan from "../assets/plan.png"
 import sound from "../assets/sound.mp3"
@@ -94,10 +96,29 @@ export default {
   props: {
     startState: String
   },
+  watch: {
+     restMinutes: function(){
+       this.debouncedSaveState();
+     },
+     workMinutes: function(){
+       this.debouncedSaveState();
+     },
+     todoTasksShown: function(){
+       this.debouncedSaveState();
+     },
+     completedTasksShown: function(){
+       this.debouncedSaveState();
+     }
+  },
+  created: function(){
+    this.debouncedSaveState = _.debounce(this.saveData, 500);
+  },
   data: function() {
       return {
+        debouncedSaveState: null,
         state: this.startState,
         work: work,
+        work2: work2,
         rest: rest,
         plan: plan,
         restMinutes: 5,
@@ -144,7 +165,7 @@ export default {
         this.saveData();
         var self = this;
         var timer = setInterval(function(){
-          if(new Date() > self.targetDate){
+          if(new Date() >= self.targetDate){
             self.audio.play();
             if(self.state === 'Work'){
               self.pomodorosDone += 1;
@@ -187,16 +208,29 @@ export default {
         this.saveData();
       },
       saveData: function() {
-        const parsed = JSON.stringify({tasks: this.tasks, pomodorosDone: this.pomodorosDone, completedTasks: this.completedTasks, targetDate: this.targetDate});
+        console.log("saving...");
+        var state = {
+          tasks: this.tasks,
+          pomodorosDone: this.pomodorosDone,
+          completedTasks: this.completedTasks,
+          restMinutes: this.restMinutes,
+          workMinutes: this.workMinutes,
+          todoTasksShown: this.todoTasksShown,
+          completedTasksShown: this.completedTasksShown,
+          targetDate: this.targetDate
+        }
+        const parsed = JSON.stringify(state);
         localStorage.setItem('pomodoroSaveData', parsed);
       },
       reopenTask: function(event) {
           const a = this.completedTasks.indexOf(event.target.innerText);
+          this.tasks.reverse();
           this.tasks.push(this.completedTasks.splice(a, 1)[0])
+          this.tasks.reverse();
           this.saveData();
           var openTasksElements = event.target.parentElement.parentElement.parentElement.previousSibling.children[1].children;
           this.$nextTick(function(){
-            openTasksElements[openTasksElements.length-1].children[0].focus()
+            openTasksElements[0].children[0].focus()
           });
       },
       upTask: function(event) {
@@ -227,8 +261,12 @@ export default {
     if(jsonData){
       const data = JSON.parse(jsonData);
       this.tasks = data.tasks;
-      this.pomodorosDone = data.pomodorosDone;
-      this.completedTasks = data.completedTasks;
+      this.pomodorosDone = Number(data.pomodorosDone);
+      this.completedTasks = data.completedTasks || [];
+      this.restMinutes = Number(data.restMinutes),
+      this.workMinutes = Number(data.workMinutes),
+      this.todoTasksShown = Number(data.todoTasksShown),
+      this.completedTasksShown = Number(data.completedTasksShown)
     }
   }
 }
