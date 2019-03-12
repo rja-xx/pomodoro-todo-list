@@ -1,11 +1,11 @@
 <template>
-  <div class="holder">
+  <div class="holder" v-on:keyup.left="right" v-on:keyup.right="left">
     <div class="state">
         <h1>{{ state }}</h1>
         <h2 v-if="state!=='Plan'">{{ String(remainingMinutes).padStart(2,0) }} : {{ String(remainingSeconds).padStart(2,0) }}</h2>
         <h2 v-if="state==='Work'">{{ tasks[0] }}</h2>
-        <img v-show="state === 'Work' && pomodorosDone % 2 === 1" :src="work" width="20%" />
-        <img v-show="state === 'Work' && pomodorosDone % 2 === 0" :src="work2" width="20%" />
+        <img v-show="state === 'Work' && pomodorosDoneToday().length % 2 === 0" :src="work" width="20%" />
+        <img v-show="state === 'Work' && pomodorosDoneToday().length % 2 === 1" :src="work2" width="20%" />
         <img v-show="state === 'Rest'" :src="rest" width="20%" />
         <img v-show="state === 'Plan'" :src="plan" width="20%" />
     </div>
@@ -13,18 +13,22 @@
     <div v-if="state==='Plan'" class="todo">
       <ul>
         <li>
+            <label for="history">Shown workday {{displayedDate.getDate()}}.{{displayedDate.getMonth()+1}}.{{displayedDate.getFullYear()}}</label>
+            <input id="history" type="range" min="-30" max="0" v-model="shownDate" class="slider">
+        </li>
+        <li>
           <input type="text" v-on:keyup.enter="addTask" v-model="candidateTask">
         </li>
         <li>
           <button v-on:click="addTask">Add task</button>
         </li>
         <li>
-          <button v-if="state!=='Work' && tasks.length !== 0"  v-on:click="startPomodoro">Start Pomodoro</button>
+          <button v-if="state!=='Work' && tasks.length !== 0 && Number(shownDate) === 0"  v-on:click="startPomodoro">Start Pomodoro</button>
         </li>
       </ul>
     </div>
 
-    <div class="plan" v-if="state==='Plan'">
+    <div class="plan" v-if="state==='Plan' && Number(shownDate) === 0">
       <h2>
         Todo-list ({{tasks.length}})
       </h2>
@@ -44,11 +48,11 @@
     </div>
     <div class="result"  v-if="state==='Plan'">
       <h2>
-        Pomodoros completed: {{pomodorosDone}} Tasks completed: {{completedTasks.length}}
+        Pomodoros completed: {{pomodorosDoneThatDay}} Tasks completed: {{completedTasksAtShownDay.length}}
       </h2>
       <ul>
-        <li v-for="(t,index) in completedTasks" v-if="(index < completedTasksShown) || showAllCompleted">
-          <button class="restart" v-on:click="reopenTask" v-on:keyup="keyup">{{t}}</button>
+        <li v-for="(t,index) in completedTasksAtShownDay" v-if="(index < completedTasksShown) || showAllCompleted">
+          <button class="restart" v-on:click="reopenTask" v-on:keyup="keyup">{{t.task}}</button>
         </li>
       </ul>
       <a v-on:click="toggleShowAllCompleted">{{showAllCompleted ? 'Hide' : 'Show all'}}</a>
@@ -108,6 +112,11 @@ export default {
      },
      completedTasksShown: function(){
        this.debouncedSaveState();
+     },
+     shownDate: function(){
+       var date = new Date();
+       date.setDate(date.getDate()+Number(this.shownDate))
+       this.displayedDate = date;
      }
   },
   created: function(){
@@ -127,7 +136,7 @@ export default {
         remainingSeconds: 0,
         tasks: [],
         completedTasks: [],
-        pomodorosDone: 0,
+        pomodorosDone: [],
         completedTasksShown: 5,
         todoTasksShown: 5,
         targetDate: new Date(),
@@ -135,19 +144,71 @@ export default {
         audio: new Audio(sound),
         displayHelp: false,
         showAllTodo: false,
-        showAllCompleted: false
+        showAllCompleted: false,
+        displayedDate: new Date(),
+        shownDate: 0
       }
   },
-  methods: {
-    keyMonitor: function(event){
-      if(event.key == 'Alt'){
-        this.toggleShowAllTodo();
-      }
+  computed: {
+    completedTasksAtShownDay: function(){
+      var self = this;
+      return _.filter(this.completedTasks, function(t){
+        return Math.round(self.displayedDate.getTime()/1000/60/60/24) === Math.round(t.completed.getTime()/1000/60/60/24);
+      });
     },
+    pomodorosDoneThatDay: function(){
+      var self = this;
+      return _.filter(this.pomodorosDone, function(t){
+        return Math.round(self.displayedDate.getTime()/1000/60/60/24) === Math.round(t.getTime()/1000/60/60/24);
+      }).length;
+    }
+  },
+  methods: {
+      keyMonitor: function(event){
+        if(event.key == 'Alt'){
+          this.toggleShowAllTodo();
+        }
+      },
+      left: function(event){
+        if(event.path[0] && event.path[0].type && (event.path[0].type === 'text' || event.path[0].id==='history')){
+          console.log('ignore left when in textfield')
+        } else if(this.shownDate < 0){
+          this.shownDate = this.shownDate+1;
+        }else{
+          console.log(this.shownDate)
+        }
+      },
+      right: function(){
+        if(event.path[0] && event.path[0].type && (event.path[0].type === 'text' || event.path[0].id==='history')){
+          console.log('ignore right when in textfield')
+        } else if (this.shownDate > -30){
+          this.shownDate = this.shownDate-1;
+        }else{
+          console.log(this.shownDate)
+        }
+      },
       keyup: function(event) {
        if(event.key == 'Alt'){
          this.toggleShowAllCompleted();
        }
+      },
+      pomodorosDoneToday: function(){
+        var today = new Date();
+        today.setHours(0,0,0,0);
+          return _.filter(this.pomodorosDone, function(d){
+            var now = new Date(d.getTime());
+            now.setHours(0,0,0,0);
+            return now.getTime() === today.getTime();
+          });
+      },
+      completedTasksToday: function(){
+        var today = new Date();
+        today.setHours(0,0,0,0);
+          return _.filter(this.completedTasks, function(t){
+            var now = new Date(t.completed);
+            now.setHours(0,0,0,0);
+            return now.getTime() === today.getTime();
+          });
       },
       toggleShowAllTodo: function(){
         this.showAllTodo = !this.showAllTodo;
@@ -158,6 +219,7 @@ export default {
       toggleHelp: function(){
           this.displayHelp = !this.displayHelp;
       },
+
       startPomodoro: function(){
         this.state = 'Work';
         this.targetDate = new Date();
@@ -168,7 +230,7 @@ export default {
           if(new Date() >= self.targetDate){
             self.audio.play();
             if(self.state === 'Work'){
-              self.pomodorosDone += 1;
+              self.pomodorosDone.push(new Date());
               self.state = 'Rest';
               self.targetDate.setMinutes(self.targetDate.getMinutes()+self.restMinutes);
               self.saveData();
@@ -203,12 +265,11 @@ export default {
       completeTask: function(i){
         var index = this.tasks.indexOf(i);
         this.completedTasks.reverse();
-        this.completedTasks.push(this.tasks.splice(index, 1)[0]);
+        this.completedTasks.push({task: this.tasks.splice(index, 1)[0], completed: new Date()});
         this.completedTasks.reverse();
         this.saveData();
       },
       saveData: function() {
-        console.log("saving...");
         var state = {
           tasks: this.tasks,
           pomodorosDone: this.pomodorosDone,
@@ -220,12 +281,13 @@ export default {
           targetDate: this.targetDate
         }
         const parsed = JSON.stringify(state);
-        localStorage.setItem('pomodoroSaveData', parsed);
+        localStorage.setItem('pomodoroSaveData_0_1', parsed);
+        localStorage.removeItem("pomodoroSaveData")
       },
       reopenTask: function(event) {
           const a = this.completedTasks.indexOf(event.target.innerText);
           this.tasks.reverse();
-          this.tasks.push(this.completedTasks.splice(a, 1)[0])
+          this.tasks.push(this.completedTasks.splice(a, 1)[0].task)
           this.tasks.reverse();
           this.saveData();
           var openTasksElements = event.target.parentElement.parentElement.parentElement.previousSibling.children[1].children;
@@ -257,17 +319,36 @@ export default {
       }
   },
   mounted: function() {
-    var jsonData = localStorage.getItem("pomodoroSaveData")
-    if(jsonData){
-      const data = JSON.parse(jsonData);
+    var jsonData00 = localStorage.getItem("pomodoroSaveData")
+    var jsonData01 = localStorage.getItem("pomodoroSaveData_0_1")
+    if(jsonData00 && ! jsonData01){
+      const data = JSON.parse(jsonData00);
       this.tasks = data.tasks;
-      this.pomodorosDone = Number(data.pomodorosDone);
-      this.completedTasks = data.completedTasks || [];
+      this.pomodorosDone = Array(Number(data.pomodorosDone)).fill(new Date());
+      this.completedTasks = _.map(data.completedTasks, function(t){
+        return {task: t, completed: new Date()}
+      });
+      this.restMinutes = Number(data.restMinutes),
+      this.workMinutes = Number(data.workMinutes),
+      this.todoTasksShown = Number(data.todoTasksShown),
+      this.completedTasksShown = Number(data.completedTasksShown)
+    } else if (jsonData01){
+      const data = JSON.parse(jsonData01);
+      this.tasks = data.tasks;
+      this.pomodorosDone = _.map(data.pomodorosDone, function(s){
+        return new Date(s);
+      }) || [];
+      this.completedTasks = _.map(data.completedTasks, function(t){
+        return {task: t.task, completed: new Date(t.completed)}
+      }) || [];
       this.restMinutes = Number(data.restMinutes),
       this.workMinutes = Number(data.workMinutes),
       this.todoTasksShown = Number(data.todoTasksShown),
       this.completedTasksShown = Number(data.completedTasksShown)
     }
+    this.$nextTick(function(){
+      this.displayedDate = new Date();
+    });
   }
 }
 
