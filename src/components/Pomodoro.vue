@@ -262,7 +262,7 @@ export default {
         }
       },
       clearTask: function(event){
-        this.tasks.splice(this.tasks.indexOf(event.target.innerText), 1)
+        this.tasks.splice(this.tasks.indexOf(event), 1)
         this.saveData();
       },
       editTask: function(event){
@@ -276,7 +276,7 @@ export default {
         });
       },
       completeTask: function(event){
-        var index = this.tasks.indexOf(event.target.innerText);
+        var index = this.tasks.indexOf(event);
         this.completedTasks.reverse();
         this.completedTasks.push({task: this.tasks.splice(index, 1)[0], completed: new Date()});
         this.completedTasks.reverse();
