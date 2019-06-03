@@ -41,6 +41,7 @@
               v-on:click="completeTask(task)"
               v-on:keyup.up="upTask"
               v-on:keyup.down="downTask"
+              v-on:keyup.e="editTask"
               >{{task}}</button>
           </li>
         </ul>
@@ -73,6 +74,8 @@
             <ul class="helplist" align="left">
               <li><b>Up</b> - Move task up (prioritize)</li>
               <li><b>Down</b> - Move task down (deprioritize)</li>
+              <li><b>Backspace</b> - Delete task</li>
+              <li><b>E</b> - Edit task</li>
               <li><b>Enter/Space</b> - Mark as completed or reopen</li>
               <li><b>Tab</b> - Move focus to next item</li>
               <li><b>Shift+Tab</b> - Move focus to previous item</li>
@@ -258,12 +261,22 @@ export default {
           this.saveData();
         }
       },
-      clearTask: function(i){
-        this.tasks.splice(this.tasks.indexOf(i), 1)
+      clearTask: function(event){
+        this.tasks.splice(this.tasks.indexOf(event.target.innerText), 1)
         this.saveData();
       },
-      completeTask: function(i){
-        var index = this.tasks.indexOf(i);
+      editTask: function(event){
+        this.tasks.splice(this.tasks.indexOf(event.target.innerText), 1)
+        this.cadidateTask = event.target.innerText;
+        var text = event.target.innerText;
+        var inputElement = event.target.parentElement.parentElement.parentElement.parentElement.children[1].children[0].children[1].children;
+        this.$nextTick(function(){
+          inputElement[0].value = text;
+          inputElement[0].focus();
+        });
+      },
+      completeTask: function(event){
+        var index = this.tasks.indexOf(event.target.innerText);
         this.completedTasks.reverse();
         this.completedTasks.push({task: this.tasks.splice(index, 1)[0], completed: new Date()});
         this.completedTasks.reverse();
@@ -285,7 +298,9 @@ export default {
         localStorage.removeItem("pomodoroSaveData")
       },
       reopenTask: function(event) {
-          const a = this.completedTasks.indexOf(event.target.innerText);
+          const a = _.map(this.completedTasks, function(t){
+              return t.task
+          }).indexOf(event.target.innerText);
           this.tasks.reverse();
           this.tasks.push(this.completedTasks.splice(a, 1)[0].task)
           this.tasks.reverse();
