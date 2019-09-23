@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <Pomodoro startState="Plan"/>
+      <Pomodoro startState="Plan"/>
   </div>
 </template>
 
